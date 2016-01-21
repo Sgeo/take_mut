@@ -44,29 +44,57 @@ pub fn take<T, F>(mut_ref: &mut T, closure: F)
     aborter.done();
 }
 
-use std::cell;
+use std::cell::Cell;
 
 pub struct Scope {
-    active_holes: cell::Cell<usize>
+    active_holes: Cell<usize>
 }
 
 impl Scope {
     pub fn scope<F>(f: F)
     where F: FnOnce(&Scope) {
         let aborter = AbortOnSuddenDrop::new();
-        let this = Scope { active_holes: cell::Cell::new(0) };
+        let this = Scope { active_holes: Cell::new(0) };
         f(&this);
+        if this.active_holes.get() != 0 {
+            panic!("There are still unfilled Holes!");
+        }
         aborter.done();
     }
     // TODO: NEED TO GUARANTEE THAT MUTABLE OBJECT IN QUESTION IS NOT A SMALLER LIFETIME
     pub fn take<'s, 'm: 's, T: 'm>(&'s self, mut_ref: &'m mut T) -> (T, Hole<'s, 'm, T>) {
-        self.active_holes.set(self.active_holes.get() + 1);
+        use std::mem;
+        
+        let num_holes = self.active_holes.get();
+        if num_holes == std::usize::MAX {
+            panic!("Failed to create new Hole, already usize::MAX unfilled holes.");
+        }
+        self.active_holes.set(num_holes + 1);
+        let t: T;
+        let hole: Hole<'s, 'm, T>;
+        unsafe {
+            t = mem::replace(mut_ref, mem::uninitialized());
+            hole = Hole { scope: self, hole: mut_ref };
+        };
+        (t, hole)
     }
 }
 
 pub struct Hole<'scope, 'm, T: 'm> {
     scope: &'scope Scope,
     hole: &'m mut T
+}
+
+impl<'scope, 'm, T: 'm> Hole<'scope, 'm, T> {
+    pub fn fill(self, t: T) {
+        use std::ptr;
+        
+        unsafe {
+            ptr::write(self.hole, t);
+        }
+        
+        self.scope.active_holes.set(self.scope.active_holes.get() - 1);
+    }
 }
 
 
