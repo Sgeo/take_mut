@@ -1,0 +1,4 @@
+[package]
+name = "take_mut"
+version = "0.1.0"
+authors = ["Sgeo <sgeoster@gmail.com>"]
