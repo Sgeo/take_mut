@@ -117,3 +117,24 @@ fn it_works() {
        Foo::B
     });
 }
+
+#[test]
+fn scope_based_take() {
+    #[derive(Debug)]
+    struct Foo;
+    
+    #[derive(Debug)]
+    struct Bar {
+        a: Foo,
+        b: Foo
+    }
+    let mut bar = Bar { a: Foo, b: Foo };
+    Scope::scope(|scope| {
+        let (a, a_hole) = scope.take(&mut bar.a);
+        let (b, b_hole) = scope.take(&mut bar.b);
+        // Imagine consuming a and b
+        a_hole.fill(Foo);
+        b_hole.fill(Foo);
+    });
+    println!("{:?}", &bar);
+}
