@@ -33,13 +33,12 @@ impl Drop for AbortOnSuddenDrop {
 /// Will abort the program (exiting with status code -1) if the closure panics.
 pub fn take<T, F>(mut_ref: &mut T, closure: F)
   where F: FnOnce(T) -> T {
-    use std::mem;
+    use std::ptr;
     let aborter = AbortOnSuddenDrop::new();
     unsafe {
-        let old_t = mem::replace(mut_ref, mem::uninitialized());
+        let old_t = ptr::read(mut_ref);
         let new_t = closure(old_t);
-        let garbage = mem::replace(mut_ref, new_t);
-        mem::forget(garbage);
+        ptr::write(mut_ref, new_t);
     }
     aborter.done();
 }
@@ -63,7 +62,7 @@ impl Scope {
     }
     // TODO: NEED TO GUARANTEE THAT MUTABLE OBJECT IN QUESTION IS NOT A SMALLER LIFETIME
     pub fn take<'s, 'm: 's, T: 'm>(&'s self, mut_ref: &'m mut T) -> (T, Hole<'s, 'm, T>) {
-        use std::mem;
+        use std::ptr;
         
         let num_holes = self.active_holes.get();
         if num_holes == std::usize::MAX {
@@ -73,7 +72,7 @@ impl Scope {
         let t: T;
         let hole: Hole<'s, 'm, T>;
         unsafe {
-            t = mem::replace(mut_ref, mem::uninitialized());
+            t = ptr::read(mut_ref);
             hole = Hole { scope: self, hole: mut_ref };
         };
         (t, hole)
