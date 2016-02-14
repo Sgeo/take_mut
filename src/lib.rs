@@ -23,6 +23,7 @@ pub fn take<T, F>(mut_ref: &mut T, closure: F)
 
 #[test]
 fn it_works() {
+    #[derive(PartialEq, Eq, Debug)]
     enum Foo {A, B};
     impl Drop for Foo {
         fn drop(&mut self) {
@@ -37,4 +38,5 @@ fn it_works() {
        drop(f);
        Foo::B
     });
+    assert_eq!(&foo, &Foo::B);
 }
