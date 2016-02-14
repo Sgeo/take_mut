@@ -19,7 +19,17 @@ impl AbortOnSuddenDrop {
 impl Drop for AbortOnSuddenDrop {
     fn drop(&mut self) {
         if !self.finished {
-            std::process::exit(-1);
+            ::std::process::exit(-1);
         }
     }
+}
+
+
+/// Calls its closure.
+/// If the closure panics, kill the process.
+pub fn abort_on_panic<R, F: FnOnce() -> R>(f: F) -> R {
+    let aborter = AbortOnSuddenDrop::new();
+    let result = f();
+    aborter.done();
+    result
 }

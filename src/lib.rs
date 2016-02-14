@@ -1,4 +1,7 @@
 
+mod abort_on_panic;
+
+use abort_on_panic::abort_on_panic;
 
 /// Allows use of a value inside a `&mut T` as though it was owned by the closure
 ///
@@ -8,13 +11,13 @@
 pub fn take<T, F>(mut_ref: &mut T, closure: F)
   where F: FnOnce(T) -> T {
     use std::ptr;
-    let aborter = AbortOnSuddenDrop::new();
-    unsafe {
-        let old_t = ptr::read(mut_ref);
-        let new_t = closure(old_t);
-        ptr::write(mut_ref, new_t);
-    }
-    aborter.done();
+    abort_on_panic(|| {
+        unsafe {
+            let old_t = ptr::read(mut_ref);
+            let new_t = closure(old_t);
+            ptr::write(mut_ref, new_t);
+        }
+    });
 }
 
 
