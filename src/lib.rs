@@ -8,6 +8,17 @@ use abort_on_panic::abort_on_panic;
 /// The closure must return a valid T
 /// # Aborts
 /// Will abort the program (exiting with status code -1) if the closure panics.
+///
+/// # Example
+/// ```
+/// struct Foo;
+/// let mut foo = Foo;
+/// take_mut::take(&mut foo, |foo| {
+///     // Can now consume from the reference, and provide a new value later
+///     drop(foo);
+///     // Do more stuff
+///     Foo // Return new Foo from closure
+/// });
 pub fn take<T, F>(mut_ref: &mut T, closure: F)
   where F: FnOnce(T) -> T {
     use std::ptr;
