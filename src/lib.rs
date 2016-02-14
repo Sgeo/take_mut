@@ -1,11 +1,16 @@
+//! This crate provides (at this time) a single function, `take()`.
+//!
+//! `take()` allows for taking `T` out of a `&mut T`, doing anything with it including consuming it, and producing another `T` to put back in the `&mut T`.
+//!
+//! Contrast with `std::mem::replace()`, which allows for putting a different `T` into a `&mut T`, but requiring the new `T` to be available before being able to consume the old `T`.
 
 mod abort_on_panic;
 
 use abort_on_panic::abort_on_panic;
 
-/// Allows use of a value inside a `&mut T` as though it was owned by the closure
+/// Allows use of a value pointed to by `&mut T` as though it was owned, as long as a `T` is made available afterwards.
 ///
-/// The closure must return a valid T
+/// The closure must return a valid T.
 /// # Aborts
 /// Will abort the program (exiting with status code -1) if the closure panics.
 ///
@@ -14,11 +19,12 @@ use abort_on_panic::abort_on_panic;
 /// struct Foo;
 /// let mut foo = Foo;
 /// take_mut::take(&mut foo, |foo| {
-///     // Can now consume from the reference, and provide a new value later
+///     // Can now consume the Foo, and provide a new value later
 ///     drop(foo);
 ///     // Do more stuff
-///     Foo // Return new Foo from closure
+///     Foo // Return new Foo from closure, which goes back into the &mut Foo
 /// });
+/// ```
 pub fn take<T, F>(mut_ref: &mut T, closure: F)
   where F: FnOnce(T) -> T {
     use std::ptr;
