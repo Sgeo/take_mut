@@ -2,6 +2,8 @@
 //!
 //! `take()` allows for taking `T` out of a `&mut T`, doing anything with it including consuming it, and producing another `T` to put back in the `&mut T`.
 //!
+//! During `take()`, if a panic occurs, the entire process will be aborted, as there's no valid `T` to put back into the `&mut T`.
+//!
 //! Contrast with `std::mem::replace()`, which allows for putting a different `T` into a `&mut T`, but requiring the new `T` to be available before being able to consume the old `T`.
 
 mod abort_on_panic;
