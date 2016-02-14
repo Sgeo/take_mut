@@ -2,19 +2,19 @@
 //!
 //! `take()` allows for taking `T` out of a `&mut T`, doing anything with it including consuming it, and producing another `T` to put back in the `&mut T`.
 //!
-//! During `take()`, if a panic occurs, the entire process will be aborted, as there's no valid `T` to put back into the `&mut T`.
+//! During `take()`, if a panic occurs, the entire process will be exited, as there's no valid `T` to put back into the `&mut T`.
 //!
 //! Contrast with `std::mem::replace()`, which allows for putting a different `T` into a `&mut T`, but requiring the new `T` to be available before being able to consume the old `T`.
 
-mod abort_on_panic;
+mod exit_on_panic;
 
-use abort_on_panic::abort_on_panic;
+use exit_on_panic::exit_on_panic;
 
 /// Allows use of a value pointed to by `&mut T` as though it was owned, as long as a `T` is made available afterwards.
 ///
 /// The closure must return a valid T.
-/// # Aborts
-/// Will abort the program (exiting with status code -1) if the closure panics.
+/// # Important
+/// Will exit the program (with status code -1) if the closure panics.
 ///
 /// # Example
 /// ```
@@ -30,7 +30,7 @@ use abort_on_panic::abort_on_panic;
 pub fn take<T, F>(mut_ref: &mut T, closure: F)
   where F: FnOnce(T) -> T {
     use std::ptr;
-    abort_on_panic(|| {
+    exit_on_panic(|| {
         unsafe {
             let old_t = ptr::read(mut_ref);
             let new_t = closure(old_t);

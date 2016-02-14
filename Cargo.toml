@@ -1,9 +1,9 @@
 [package]
 name = "take_mut"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Sgeo <sgeoster@gmail.com>"]
 license = "MIT"
 homepage = "https://github.com/Sgeo/take_mut"
 repository = "https://github.com/Sgeo/take_mut"
 description = "Take a T from a &mut T temporarily"
-documentation = "https://crates.fyi/crates/take_mut/0.1.0/"
+documentation = "https://crates.fyi/crates/take_mut/0.1.1/"
