@@ -9,7 +9,7 @@ During `take()`, if a panic occurs, the entire process will be aborted, as there
 Contrast with `std::mem::replace()`, which allows for putting a different `T` into a `&mut T`, but requiring the new `T` to be available before being able to consume the old `T`.
 
 # Example
-```
+```rust
 struct Foo;
 let mut foo = Foo;
 take_mut::take(&mut foo, |foo| {
