@@ -1,26 +1,22 @@
 /// Used to ensure an exit on panic.
 /// Call .done() to consume without exiting
 #[derive(Debug)]
-struct ExitOnSuddenDrop {
-    finished: bool
-}
+struct ExitOnSuddenDrop;
 
 impl ExitOnSuddenDrop {
 
     pub fn new() -> Self {
-        ExitOnSuddenDrop { finished: false }
+        ExitOnSuddenDrop
     }
     /// Consume `self` without exiting
-    pub fn done(mut self) {
-        self.finished = true;
+    pub fn done(self) {
+        ::std::mem::forget(self);
     }
 }
 
 impl Drop for ExitOnSuddenDrop {
     fn drop(&mut self) {
-        if !self.finished {
-            ::std::process::exit(-1);
-        }
+        ::std::process::exit(-1);
     }
 }
 
