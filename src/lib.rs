@@ -26,7 +26,8 @@ use exit_on_panic::exit_on_panic;
 /// struct Bar;
 /// let mut foo = Foo;
 /// let mut bar = Bar;
-/// take_multi!(&mut foo, &mut bar, |f, b| {    // Brackets must be used.
+/// take_multi!(&mut foo, &mut bar, |mut f, mut b| {
+///     // Brackets and the mut on the closure arguments must be used.
 ///     // Can access both f and b, later providing a new value.
 ///     drop(f);
 ///     drop(b);
@@ -40,7 +41,7 @@ use exit_on_panic::exit_on_panic;
 macro_rules! take_multi {
     (to_expr, $e:expr) => {$e};
 
-    ($mb1:expr, |$b1:ident| {$($body:stmt);*;}) => {
+    ($mb1:expr, |mut $b1:ident| {$($body:stmt);*;}) => {
 // For anyone wondering, this is a fake closure.
 // It takes the syntax of a closure, but actually is placed into a different closure inline.
         $crate::take($mb1, |mut $b1| {
@@ -50,8 +51,8 @@ macro_rules! take_multi {
         })
     };
 
-    ($mb1:expr, $mb2:expr, |$b1:ident, $b2:ident| {$($body:stmt);*;}) => {
-        take_multi!($mb1, |$b1| {
+    ($mb1:expr, $mb2:expr, |mut $b1:ident, mut $b2:ident| {$($body:stmt);*;}) => {
+        take_multi!($mb1, |mut $b1| {
             $b1 = $crate::take_used_for_macros_1($mb2, |mut $b2| {
                 $($body;)*
                 (take_multi!(to_expr, $b2), $b1)
@@ -59,8 +60,8 @@ macro_rules! take_multi {
         })
     };
 
-    ($mb1:expr, $mb2:expr, $mb3:expr, |$b1:ident, $b2:ident, $b3:ident| {$($body:stmt);*;}) => {
-        take_multi!($mb1, $mb2, |$b1, $b2| {
+    ($mb1:expr, $mb2:expr, $mb3:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident| {$($body:stmt);*;}) => {
+        take_multi!($mb1, $mb2, |mut $b1, mut $b2| {
             let (temp1, temp2) = $crate::take_used_for_macros_2($mb3, |mut $b3| {
                 $($body;)*
                 (take_multi!(to_expr, $b3), $b1, $b2)
@@ -70,8 +71,8 @@ macro_rules! take_multi {
         })
     };
 
-    ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, |$b1:ident, $b2:ident, $b3:ident, $b4:ident| {$($body:stmt);*;}) => {
-        take_multi!($mb1, $mb2, $mb3, |$b1, $b2, $b3| {
+    ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident, mut $b4:ident| {$($body:stmt);*;}) => {
+        take_multi!($mb1, $mb2, $mb3, |mut $b1, mut $b2, mut $b3| {
             let (temp1, temp2, temp3) = $crate::take_used_for_macros_3($mb4, |mut $b4| {
                 $($body;)*
                 (take_multi!(to_expr, $b4), $b1, $b2, $b3)
@@ -82,8 +83,8 @@ macro_rules! take_multi {
         })
     };
 
-    ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, $mb5:expr, |$b1:ident, $b2:ident, $b3:ident, $b4:ident, $b5:ident| {$($body:stmt);*;}) => {
-        take_multi!($mb1, $mb2, $mb3, $mb4, |$b1, $b2, $b3, $b4| {
+    ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, $mb5:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident, mut $b4:ident, mut $b5:ident| {$($body:stmt);*;}) => {
+        take_multi!($mb1, $mb2, $mb3, $mb4, |mut $b1, mut $b2, mut $b3, mut $b4| {
             let (temp1, temp2, temp3, temp4) = $crate::take_used_for_macros_4($mb5, |mut $b5| {
                 $($body;)*
                 (take_multi!(to_expr, $b5), $b1, $b2, $b3, $b4)
@@ -235,7 +236,7 @@ mod test {
     #[test]
     fn take_multi_1() {
         let mut foo = Foo::A;
-        take_multi!(&mut foo, |f| {
+        take_multi!(&mut foo, |mut f| {
             drop(f);
             f = Foo::B;
         });
@@ -246,7 +247,7 @@ mod test {
     fn take_multi_2() {
         let mut foo = Foo::A;
         let mut bar = Bar::C;
-        take_multi!(&mut foo, &mut bar, |f, b| {
+        take_multi!(&mut foo, &mut bar, |mut f, mut b| {
             drop(f);
             drop(b);
             f = Foo::B;
@@ -261,7 +262,7 @@ mod test {
         let mut foo1 = Foo::A;
         let mut foo2 = Foo::A;
         let mut bar = Bar::C;
-        take_multi!(&mut foo1, &mut foo2, &mut bar, |f1, f2, b| {
+        take_multi!(&mut foo1, &mut foo2, &mut bar, |mut f1, mut f2, mut b| {
             drop(f1);
             drop(f2);
             drop(b);
@@ -280,7 +281,7 @@ mod test {
         let mut foo2 = Foo::A;
         let mut bar1 = Bar::C;
         let mut bar2 = Bar::C;
-        take_multi!(&mut foo1, &mut foo2, &mut bar1, &mut bar2, |f1, f2, b1, b2| {
+        take_multi!(&mut foo1, &mut foo2, &mut bar1, &mut bar2, |mut f1, mut f2, mut b1, mut b2| {
             drop(f1);
             drop(f2);
             drop(b1);
@@ -303,7 +304,7 @@ mod test {
         let mut bar1 = Bar::C;
         let mut bar2 = Bar::C;
         let mut bar3 = Bar::C;
-        take_multi!(&mut foo1, &mut foo2, &mut bar1, &mut bar2, &mut bar3, |f1, f2, b1, b2, b3| {
+        take_multi!(&mut foo1, &mut foo2, &mut bar1, &mut bar2, &mut bar3, |mut f1, mut f2, mut b1, mut b2, mut b3| {
             drop(f1);
             drop(f2);
             drop(b1);
