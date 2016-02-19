@@ -41,29 +41,29 @@ use exit_on_panic::exit_on_panic;
 macro_rules! take_multi {
     (to_expr, $e:expr) => {$e};
 
-    ($mb1:expr, |mut $b1:ident| {$($body:stmt);*;}) => {
+    ($mb1:expr, |mut $b1:ident| $body:block) => {
 // For anyone wondering, this is a fake closure.
 // It takes the syntax of a closure, but actually is placed into a different closure inline.
         $crate::take($mb1, |mut $b1| {
 // Sadly, mut by default is nessary. It would be significantly more complicated to make it optional in the macro invocation.
-            $($body;)*
+            $body;
             take_multi!(to_expr, $b1)
         })
     };
 
-    ($mb1:expr, $mb2:expr, |mut $b1:ident, mut $b2:ident| {$($body:stmt);*;}) => {
+    ($mb1:expr, $mb2:expr, |mut $b1:ident, mut $b2:ident| $body:block) => {
         take_multi!($mb1, |mut $b1| {
             $b1 = $crate::take_used_for_macros_1($mb2, |mut $b2| {
-                $($body;)*
+                $body;
                 (take_multi!(to_expr, $b2), $b1)
             });
         })
     };
 
-    ($mb1:expr, $mb2:expr, $mb3:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident| {$($body:stmt);*;}) => {
+    ($mb1:expr, $mb2:expr, $mb3:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident| $body:block) => {
         take_multi!($mb1, $mb2, |mut $b1, mut $b2| {
             let (temp1, temp2) = $crate::take_used_for_macros_2($mb3, |mut $b3| {
-                $($body;)*
+                $body;
                 (take_multi!(to_expr, $b3), $b1, $b2)
             });
             $b1 = temp1;
@@ -71,10 +71,10 @@ macro_rules! take_multi {
         })
     };
 
-    ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident, mut $b4:ident| {$($body:stmt);*;}) => {
+    ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident, mut $b4:ident| $body:block) => {
         take_multi!($mb1, $mb2, $mb3, |mut $b1, mut $b2, mut $b3| {
             let (temp1, temp2, temp3) = $crate::take_used_for_macros_3($mb4, |mut $b4| {
-                $($body;)*
+                $body;
                 (take_multi!(to_expr, $b4), $b1, $b2, $b3)
             });
             $b1 = temp1;
@@ -83,10 +83,10 @@ macro_rules! take_multi {
         })
     };
 
-    ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, $mb5:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident, mut $b4:ident, mut $b5:ident| {$($body:stmt);*;}) => {
+    ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, $mb5:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident, mut $b4:ident, mut $b5:ident| $body:block) => {
         take_multi!($mb1, $mb2, $mb3, $mb4, |mut $b1, mut $b2, mut $b3, mut $b4| {
             let (temp1, temp2, temp3, temp4) = $crate::take_used_for_macros_4($mb5, |mut $b5| {
-                $($body;)*
+                $body;
                 (take_multi!(to_expr, $b5), $b1, $b2, $b3, $b4)
             });
             $b1 = temp1;
