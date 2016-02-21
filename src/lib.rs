@@ -117,13 +117,9 @@ macro_rules! take_multi {
 pub fn take<T, F>(mut_ref: &mut T, closure: F)
     where F: FnOnce(T) -> T
 {
-    use std::ptr;
-    exit_on_panic(|| {
-        unsafe {
-            let old_t = ptr::read(mut_ref);
-            let new_t = closure(old_t);
-            ptr::write(mut_ref, new_t);
-        }
+    take_used_for_macros_1(mut_ref, |val| {
+        let new_val = closure(val);
+        (new_val, ())
     });
 }
 
