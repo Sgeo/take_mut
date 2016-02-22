@@ -14,7 +14,7 @@ use exit_on_panic::exit_on_panic;
 ///
 /// The closure must return a valid T.
 /// # Important
-/// Will exit the program (with status code -1) if the closure panics.
+/// Will exit the program (with status code 101) if the closure panics.
 ///
 /// # Example
 /// ```

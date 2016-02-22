@@ -16,7 +16,7 @@ impl ExitOnSuddenDrop {
 
 impl Drop for ExitOnSuddenDrop {
     fn drop(&mut self) {
-        ::std::process::exit(-1);
+        ::std::process::exit(101);
     }
 }
 
