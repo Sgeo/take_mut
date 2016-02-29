@@ -53,7 +53,7 @@ macro_rules! take_multi {
 
     ($mb1:expr, $mb2:expr, |mut $b1:ident, mut $b2:ident| $body:block) => {
         take_multi!($mb1, |mut $b1| {
-            $b1 = $crate::take_used_for_macros_1($mb2, |mut $b2| {
+            $b1 = $crate::take_used_for_macros($mb2, |mut $b2| {
                 $body;
                 (take_multi!(to_expr, $b2), $b1)
             });
@@ -62,9 +62,9 @@ macro_rules! take_multi {
 
     ($mb1:expr, $mb2:expr, $mb3:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident| $body:block) => {
         take_multi!($mb1, $mb2, |mut $b1, mut $b2| {
-            let (temp1, temp2) = $crate::take_used_for_macros_2($mb3, |mut $b3| {
+            let (temp1, temp2) = $crate::take_used_for_macros($mb3, |mut $b3| {
                 $body;
-                (take_multi!(to_expr, $b3), $b1, $b2)
+                (take_multi!(to_expr, $b3), ($b1, $b2))
             });
             $b1 = temp1;
             $b2 = temp2;
@@ -73,9 +73,9 @@ macro_rules! take_multi {
 
     ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident, mut $b4:ident| $body:block) => {
         take_multi!($mb1, $mb2, $mb3, |mut $b1, mut $b2, mut $b3| {
-            let (temp1, temp2, temp3) = $crate::take_used_for_macros_3($mb4, |mut $b4| {
+            let (temp1, temp2, temp3) = $crate::take_used_for_macros($mb4, |mut $b4| {
                 $body;
-                (take_multi!(to_expr, $b4), $b1, $b2, $b3)
+                (take_multi!(to_expr, $b4), ($b1, $b2, $b3))
             });
             $b1 = temp1;
             $b2 = temp2;
@@ -85,9 +85,9 @@ macro_rules! take_multi {
 
     ($mb1:expr, $mb2:expr, $mb3:expr, $mb4:expr, $mb5:expr, |mut $b1:ident, mut $b2:ident, mut $b3:ident, mut $b4:ident, mut $b5:ident| $body:block) => {
         take_multi!($mb1, $mb2, $mb3, $mb4, |mut $b1, mut $b2, mut $b3, mut $b4| {
-            let (temp1, temp2, temp3, temp4) = $crate::take_used_for_macros_4($mb5, |mut $b5| {
+            let (temp1, temp2, temp3, temp4) = $crate::take_used_for_macros($mb5, |mut $b5| {
                 $body;
-                (take_multi!(to_expr, $b5), $b1, $b2, $b3, $b4)
+                (take_multi!(to_expr, $b5), ($b1, $b2, $b3, $b4))
             });
             $b1 = temp1;
             $b2 = temp2;
@@ -117,7 +117,7 @@ macro_rules! take_multi {
 pub fn take<T, F>(mut_ref: &mut T, closure: F)
     where F: FnOnce(T) -> T
 {
-    take_used_for_macros_1(mut_ref, |val| {
+    take_used_for_macros(mut_ref, |val| {
         let new_val = closure(val);
         (new_val, ())
     });
@@ -125,7 +125,7 @@ pub fn take<T, F>(mut_ref: &mut T, closure: F)
 
 /// Used internally in the take_multi! macro.
 #[doc(hidden)]
-pub fn take_used_for_macros_1<T, F, U>(mut_ref: &mut T, closure: F) -> U
+pub fn take_used_for_macros<T, F, U>(mut_ref: &mut T, closure: F) -> U
     where F: FnOnce(T) -> (T, U)
 {
     use std::ptr;
@@ -135,54 +135,6 @@ pub fn take_used_for_macros_1<T, F, U>(mut_ref: &mut T, closure: F) -> U
             let (new_t, mv) = closure(old_t);
             ptr::write(mut_ref, new_t);
             mv
-        }
-    })
-}
-
-/// Used internally in the take_multi! macro.
-#[doc(hidden)]
-pub fn take_used_for_macros_2<T, F, U, V>(mut_ref: &mut T, closure: F) -> (U, V)
-    where F: FnOnce(T) -> (T, U, V)
-{
-    use std::ptr;
-    exit_on_panic(|| {
-        unsafe {
-            let old_t = ptr::read(mut_ref);
-            let (new_t, mvu, mvv) = closure(old_t);
-            ptr::write(mut_ref, new_t);
-            (mvu, mvv)
-        }
-    })
-}
-
-/// Used internally in the take_multi! macro.
-#[doc(hidden)]
-pub fn take_used_for_macros_3<T, F, U, V, W>(mut_ref: &mut T, closure: F) -> (U, V, W)
-    where F: FnOnce(T) -> (T, U, V, W)
-{
-    use std::ptr;
-    exit_on_panic(|| {
-        unsafe {
-            let old_t = ptr::read(mut_ref);
-            let (new_t, mvu, mvv, mvw) = closure(old_t);
-            ptr::write(mut_ref, new_t);
-            (mvu, mvv, mvw)
-        }
-    })
-}
-
-/// Used internally in the take_multi! macro.
-#[doc(hidden)]
-pub fn take_used_for_macros_4<T, F, U, V, W, X>(mut_ref: &mut T, closure: F) -> (U, V, W, X)
-    where F: FnOnce(T) -> (T, U, V, W, X)
-{
-    use std::ptr;
-    exit_on_panic(|| {
-        unsafe {
-            let old_t = ptr::read(mut_ref);
-            let (new_t, mv_u, mv_v, mv_w, mv_x) = closure(old_t);
-            ptr::write(mut_ref, new_t);
-            (mv_u, mv_v, mv_w, mv_x)
         }
     })
 }
