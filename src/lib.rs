@@ -48,13 +48,13 @@ pub struct Scope {
 impl Scope {
     pub fn scope<F>(f: F)
     where F: FnOnce(&Scope) {
-        let aborter = AbortOnSuddenDrop::new();
-        let this = Scope { active_holes: Cell::new(0) };
-        f(&this);
-        if this.active_holes.get() != 0 {
-            panic!("There are still unfilled Holes!");
-        }
-        aborter.done();
+        exit_on_panic(|| {
+            let this = Scope { active_holes: Cell::new(0) };
+            f(&this);
+            if this.active_holes.get() != 0 {
+                panic!("There are still unfilled Holes!");
+            }
+        });
     }
     // TODO: NEED TO GUARANTEE THAT MUTABLE OBJECT IN QUESTION IS NOT A SMALLER LIFETIME
     pub fn take<'s, 'm: 's, T: 'm>(&'s self, mut_ref: &'m mut T) -> (T, Hole<'s, 'm, T>) {
