@@ -39,6 +39,61 @@ pub fn take<T, F>(mut_ref: &mut T, closure: F)
     });
 }
 
+use std::cell::Cell;
+
+pub struct Scope {
+    active_holes: Cell<usize>
+}
+
+impl Scope {
+    pub fn scope<F>(f: F)
+    where F: FnOnce(&Scope) {
+        let aborter = AbortOnSuddenDrop::new();
+        let this = Scope { active_holes: Cell::new(0) };
+        f(&this);
+        if this.active_holes.get() != 0 {
+            panic!("There are still unfilled Holes!");
+        }
+        aborter.done();
+    }
+    // TODO: NEED TO GUARANTEE THAT MUTABLE OBJECT IN QUESTION IS NOT A SMALLER LIFETIME
+    pub fn take<'s, 'm: 's, T: 'm>(&'s self, mut_ref: &'m mut T) -> (T, Hole<'s, 'm, T>) {
+        use std::ptr;
+        
+        let num_holes = self.active_holes.get();
+        if num_holes == std::usize::MAX {
+            panic!("Failed to create new Hole, already usize::MAX unfilled holes.");
+        }
+        self.active_holes.set(num_holes + 1);
+        let t: T;
+        let hole: Hole<'s, 'm, T>;
+        unsafe {
+            t = ptr::read(mut_ref);
+            hole = Hole { scope: self, hole: mut_ref };
+        };
+        (t, hole)
+    }
+}
+
+pub struct Hole<'scope, 'm, T: 'm> {
+    scope: &'scope Scope,
+    hole: &'m mut T
+}
+
+impl<'scope, 'm, T: 'm> Hole<'scope, 'm, T> {
+    pub fn fill(self, t: T) {
+        use std::ptr;
+        
+        unsafe {
+            ptr::write(self.hole, t);
+        }
+        
+        self.scope.active_holes.set(self.scope.active_holes.get() - 1);
+    }
+}
+
+
+
 
 #[test]
 fn it_works() {
@@ -58,4 +113,25 @@ fn it_works() {
        Foo::B
     });
     assert_eq!(&foo, &Foo::B);
+}
+
+#[test]
+fn scope_based_take() {
+    #[derive(Debug)]
+    struct Foo;
+    
+    #[derive(Debug)]
+    struct Bar {
+        a: Foo,
+        b: Foo
+    }
+    let mut bar = Bar { a: Foo, b: Foo };
+    Scope::scope(|scope| {
+        let (a, a_hole) = scope.take(&mut bar.a);
+        let (b, b_hole) = scope.take(&mut bar.b);
+        // Imagine consuming a and b
+        a_hole.fill(Foo);
+        b_hole.fill(Foo);
+    });
+    println!("{:?}", &bar);
 }
