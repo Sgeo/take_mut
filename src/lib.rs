@@ -39,56 +39,65 @@ pub fn take<T, F>(mut_ref: &mut T, closure: F)
     });
 }
 
-use std::cell::Cell;
+use std::rc::Rc;
+use std::marker::PhantomData;
 
-pub struct Scope {
-    active_holes: Cell<usize>
+pub struct Scope<'s> {
+    active_holes: Rc<()>,
+    marker: PhantomData<&'s mut ()>
 }
 
-impl Scope {
-    pub fn scope<F>(f: F)
-    where F: FnOnce(&Scope) {
-        exit_on_panic(|| {
-            let this = Scope { active_holes: Cell::new(0) };
-            f(&this);
-            if this.active_holes.get() != 0 {
-                panic!("There are still unfilled Holes!");
-            }
-        });
-    }
-    // TODO: NEED TO GUARANTEE THAT MUTABLE OBJECT IN QUESTION IS NOT A SMALLER LIFETIME
-    pub fn take<'s, 'm: 's, T: 'm>(&'s self, mut_ref: &'m mut T) -> (T, Hole<'s, 'm, T>) {
+impl<'s> Scope<'s> {
+
+    // Guarantees break if this is &self instead of &mut self, and I don't know why
+    // Reason to use Rcs is because can't return a & from a &mut self nicely
+    pub fn take<'m: 's, T: 'm>(&mut self, mut_ref: &'m mut T) -> (T, Hole<'m, T>) {
         use std::ptr;
         
-        let num_holes = self.active_holes.get();
-        if num_holes == std::usize::MAX {
-            panic!("Failed to create new Hole, already usize::MAX unfilled holes.");
-        }
-        self.active_holes.set(num_holes + 1);
         let t: T;
-        let hole: Hole<'s, 'm, T>;
+        let hole: Hole<'m, T>;
         unsafe {
             t = ptr::read(mut_ref);
-            hole = Hole { scope: self, hole: mut_ref };
+            hole = Hole { active_holes: Some(self.active_holes.clone()), hole: mut_ref };
         };
         (t, hole)
     }
 }
 
-pub struct Hole<'scope, 'm, T: 'm> {
-    scope: &'scope Scope,
+pub fn scope<'s, F, R>(f: F) -> R
+    where F: FnOnce(&mut Scope<'s>) -> R {
+    exit_on_panic(|| {
+        let mut this = Scope { active_holes: Rc::new(()), marker: PhantomData };
+        let r = f(&mut this);
+        if Rc::strong_count(&this.active_holes) != 1 {
+            panic!("There are still unfilled Holes at the end of the scope!");
+        }
+        r
+    })
+}
+
+#[must_use]
+pub struct Hole<'m, T: 'm> {
+    active_holes: Option<Rc<()>>,
     hole: &'m mut T
 }
 
-impl<'scope, 'm, T: 'm> Hole<'scope, 'm, T> {
-    pub fn fill(self, t: T) {
+impl<'m, T: 'm> Hole<'m, T> {
+    pub fn fill(mut self, t: T) {
         use std::ptr;
+        use std::mem;
         
         unsafe {
             ptr::write(self.hole, t);
         }
-        
-        self.scope.active_holes.set(self.scope.active_holes.get() - 1);
+        self.active_holes.take();
+        mem::forget(self);
+    }
+}
+
+impl<'m, T: 'm> Drop for Hole<'m, T> {
+    fn drop(&mut self) {
+        panic!("An unfilled Hole was destructed!");
     }
 }
 
@@ -126,7 +135,7 @@ fn scope_based_take() {
         b: Foo
     }
     let mut bar = Bar { a: Foo, b: Foo };
-    Scope::scope(|scope| {
+    scope(|scope| {
         let (a, a_hole) = scope.take(&mut bar.a);
         let (b, b_hole) = scope.take(&mut bar.b);
         // Imagine consuming a and b
