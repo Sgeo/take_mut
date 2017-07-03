@@ -71,22 +71,24 @@ fn it_works() {
 /// ```
 /// struct Foo;
 /// let mut foo = Foo;
-/// take_mut::take_or_recover(&mut foo, Foo, |foo| {
+/// take_mut::take_or_recover(&mut foo, || Foo, |foo| {
 ///     // Can now consume the Foo, and provide a new value later
 ///     drop(foo);
 ///     // Do more stuff
 ///     Foo // Return new Foo from closure, which goes back into the &mut Foo
 /// });
 /// ```
-pub fn take_or_recover<T, F>(mut_ref: &mut T, recover: T, closure: F)
-  where F: FnOnce(T) -> T {
+pub fn take_or_recover<T, F, R>(mut_ref: &mut T, recover: R, closure: F)
+  where F: FnOnce(T) -> T, R: FnOnce() -> T {
     use std::ptr;
     unsafe {
         let old_t = ptr::read(mut_ref);
         let new_t = panic::catch_unwind(panic::AssertUnwindSafe(|| closure(old_t)));
         match new_t {
             Err(err) => {
-                ptr::write(mut_ref, recover);
+                let r = panic::catch_unwind(panic::AssertUnwindSafe(|| recover()))
+                    .unwrap_or_else(|_| ::std::process::exit(101));
+                ptr::write(mut_ref, r);
                 panic::resume_unwind(err);
             }
             Ok(new_t) => ptr::write(mut_ref, new_t),
@@ -107,7 +109,7 @@ fn it_works_recover() {
         }
     }
     let mut foo = Foo::A;
-    take_or_recover(&mut foo, Foo::A, |f| {
+    take_or_recover(&mut foo, || Foo::A, |f| {
        drop(f);
        Foo::B
     });
@@ -130,7 +132,7 @@ fn it_works_recover_panic() {
     let mut foo = Foo::A;
 
     let res = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        take_or_recover(&mut foo, Foo::C, |f| {
+        take_or_recover(&mut foo, || Foo::C, |f| {
             drop(f);
             panic!("panic");
             Foo::B
