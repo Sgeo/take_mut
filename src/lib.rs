@@ -7,9 +7,6 @@
 //!
 //! Contrast with `std::mem::replace()`, which allows for putting a different `T` into a `&mut T`, but requiring the new `T` to be available before being able to consume the old `T`.
 
-mod exit_on_panic;
-
-use exit_on_panic::exit_on_panic;
 use std::panic;
 
 /// Allows use of a value pointed to by `&mut T` as though it was owned, as long as a `T` is made available afterwards.
@@ -32,13 +29,13 @@ use std::panic;
 pub fn take<T, F>(mut_ref: &mut T, closure: F)
   where F: FnOnce(T) -> T {
     use std::ptr;
-    exit_on_panic(|| {
-        unsafe {
-            let old_t = ptr::read(mut_ref);
-            let new_t = closure(old_t);
-            ptr::write(mut_ref, new_t);
-        }
-    });
+
+    unsafe {
+        let old_t = ptr::read(mut_ref);
+        let new_t = panic::catch_unwind(panic::AssertUnwindSafe(|| closure(old_t)))
+            .unwrap_or_else(|_| ::std::process::exit(101));
+        ptr::write(mut_ref, new_t);
+    }
 }
 
 #[test]
