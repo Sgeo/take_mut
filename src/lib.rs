@@ -121,7 +121,7 @@ impl<'s> Scope<'s> {
             hole = Hole {
                 active_holes: &self.active_holes,
                 hole: mut_ref,
-                recovery: recovery
+                recovery: Some(recovery)
             };
         };
         (t, hole)
@@ -152,13 +152,13 @@ pub fn scope<'s, F, R>(f: F) -> R
 }
 
 #[must_use]
-pub struct Hole<'c, 'm, T: 'm, F> {
+pub struct Hole<'c, 'm, T: 'm, F: FnOnce() -> T> {
     active_holes: &'c Cell<usize>,
     hole: &'m mut T,
-    recovery: F,
+    recovery: Option<F>,
 }
 
-impl<'c, 'm, T: 'm, F> Hole<'c, 'm, T, F> {
+impl<'c, 'm, T: 'm, F: FnOnce() -> T> Hole<'c, 'm, T, F> {
     pub fn fill(mut self, t: T) {
         use std::ptr;
         use std::mem;
@@ -172,9 +172,24 @@ impl<'c, 'm, T: 'm, F> Hole<'c, 'm, T, F> {
     }
 }
 
-impl<'c, 'm, T: 'm, F> Drop for Hole<'c, 'm, T, F> {
+impl<'c, 'm, T: 'm, F: FnOnce() -> T> Drop for Hole<'c, 'm, T, F> {
     fn drop(&mut self) {
-        panic!("An unfilled Hole was destructed!");
+        use std::ptr;
+        use std::mem;
+        
+        let result = panic::catch_unwind(panic::AssertUnwindSafe(||{
+            (self.recovery.take().expect("No recovery function in Hole!"))()
+        }));
+        match result {
+            Ok(t) => {
+                unsafe {
+                    ptr::write(self.hole, t);
+                }
+                let num_holes = self.active_holes.get();
+                self.active_holes.set(num_holes - 1);
+            },
+            Err(p) => panic::resume_unwind(p)
+        }
     }
 }
 
