@@ -121,31 +121,17 @@ impl<'s> Scope<'s> {
             hole = Hole {
                 active_holes: &self.active_holes,
                 hole: mut_ref,
-                recovery: Some(recovery)
+                recovery: recovery
             };
         };
         (t, hole)
     }
     
     pub fn take<'c, 'm: 's, T: 'm>(&'c self, mut_ref: &'m mut T) -> (T, Hole<'c, 'm, T, fn() -> T>) {
-        use std::ptr;
-        
-        let t: T;
-        let hole: Hole<'c, 'm, T, fn() -> T>;
-        let num_of_holes = self.active_holes.get();
-        if num_of_holes == std::usize::MAX {
-            panic!("Too many holes!");
+        fn panic<T>() -> T {
+            panic!("Failed to recover a Hole!")
         }
-        self.active_holes.set(num_of_holes + 1);
-        unsafe {
-            t = ptr::read(mut_ref);
-            hole = Hole {
-                active_holes: &self.active_holes,
-                hole: mut_ref,
-                recovery: None
-            };
-        };
-        (t, hole)
+        self.take_and_recover(mut_ref, panic)
     }
 }
 
@@ -169,7 +155,7 @@ pub fn scope<'s, F, R>(f: F) -> R
 pub struct Hole<'c, 'm, T: 'm, F> {
     active_holes: &'c Cell<usize>,
     hole: &'m mut T,
-    recovery: Option<F>,
+    recovery: F,
 }
 
 impl<'c, 'm, T: 'm, F> Hole<'c, 'm, T, F> {
@@ -180,7 +166,8 @@ impl<'c, 'm, T: 'm, F> Hole<'c, 'm, T, F> {
         unsafe {
             ptr::write(self.hole, t);
         }
-        self.active_holes.take();
+        let num_holes = self.active_holes.get();
+        self.active_holes.set(num_holes - 1);
         mem::forget(self);
     }
 }
