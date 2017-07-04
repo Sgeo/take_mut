@@ -95,50 +95,84 @@ pub fn take_or_recover<T, F, R>(mut_ref: &mut T, recover: R, closure: F)
 }
 
 
-use std::rc::Rc;
+use std::cell::Cell;
 use std::marker::PhantomData;
 
 pub struct Scope<'s> {
-    active_holes: Rc<()>,
-    marker: PhantomData<&'s mut ()>
+    active_holes: Cell<usize>,
+    marker: PhantomData<Cell<&'s mut ()>>
 }
 
 impl<'s> Scope<'s> {
 
-    // Guarantees break if this is &self instead of &mut self, and I don't know why
-    // Reason to use Rcs is because can't return a & from a &mut self nicely
-    pub fn take<'m: 's, T: 'm>(&mut self, mut_ref: &'m mut T) -> (T, Hole<'m, T>) {
+    
+    pub fn take_and_recover<'c, 'm: 's, T: 'm, F: FnOnce() -> T>(&'c self, mut_ref: &'m mut T, recovery: F) -> (T, Hole<'c, 'm, T, F>) {
         use std::ptr;
         
         let t: T;
-        let hole: Hole<'m, T>;
+        let hole: Hole<'c, 'm, T, F>;
+        let num_of_holes = self.active_holes.get();
+        if num_of_holes == std::usize::MAX {
+            panic!("Too many holes!");
+        }
+        self.active_holes.set(num_of_holes + 1);
         unsafe {
             t = ptr::read(mut_ref);
-            hole = Hole { active_holes: Some(self.active_holes.clone()), hole: mut_ref };
+            hole = Hole {
+                active_holes: &self.active_holes,
+                hole: mut_ref,
+                recovery: Some(recovery)
+            };
+        };
+        (t, hole)
+    }
+    
+    pub fn take<'c, 'm: 's, T: 'm>(&'c self, mut_ref: &'m mut T) -> (T, Hole<'c, 'm, T, fn() -> T>) {
+        use std::ptr;
+        
+        let t: T;
+        let hole: Hole<'c, 'm, T, fn() -> T>;
+        let num_of_holes = self.active_holes.get();
+        if num_of_holes == std::usize::MAX {
+            panic!("Too many holes!");
+        }
+        self.active_holes.set(num_of_holes + 1);
+        unsafe {
+            t = ptr::read(mut_ref);
+            hole = Hole {
+                active_holes: &self.active_holes,
+                hole: mut_ref,
+                recovery: None
+            };
         };
         (t, hole)
     }
 }
 
 pub fn scope<'s, F, R>(f: F) -> R
-    where F: FnOnce(&mut Scope<'s>) -> R {
-    exit_on_panic(|| {
-        let mut this = Scope { active_holes: Rc::new(()), marker: PhantomData };
-        let r = f(&mut this);
-        if Rc::strong_count(&this.active_holes) != 1 {
-            panic!("There are still unfilled Holes at the end of the scope!");
-        }
-        r
-    })
+    where F: FnOnce(&Scope<'s>) -> R {
+    let this = Scope { active_holes: Cell::new(0), marker: PhantomData };
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        f(&this)
+    }));
+    if this.active_holes.get() != 0 {
+        std::process::exit(101);
+    }
+    match result {
+        Ok(r) => r,
+        Err(p) => panic::resume_unwind(p),
+    }
+    
 }
 
 #[must_use]
-pub struct Hole<'m, T: 'm> {
-    active_holes: Option<Rc<()>>,
-    hole: &'m mut T
+pub struct Hole<'c, 'm, T: 'm, F> {
+    active_holes: &'c Cell<usize>,
+    hole: &'m mut T,
+    recovery: Option<F>,
 }
 
-impl<'m, T: 'm> Hole<'m, T> {
+impl<'c, 'm, T: 'm, F> Hole<'c, 'm, T, F> {
     pub fn fill(mut self, t: T) {
         use std::ptr;
         use std::mem;
@@ -151,7 +185,7 @@ impl<'m, T: 'm> Hole<'m, T> {
     }
 }
 
-impl<'m, T: 'm> Drop for Hole<'m, T> {
+impl<'c, 'm, T: 'm, F> Drop for Hole<'c, 'm, T, F> {
     fn drop(&mut self) {
         panic!("An unfilled Hole was destructed!");
     }
