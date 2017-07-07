@@ -82,19 +82,12 @@ impl<'c, 'm, T: 'm, F: FnOnce() -> T> Drop for Hole<'c, 'm, T, F> {
         use std::ptr;
         use std::mem;
         
-        let result = panic::catch_unwind(panic::AssertUnwindSafe(||{
-            (self.recovery.take().expect("No recovery function in Hole!"))()
-        }));
-        match result {
-            Ok(t) => {
-                unsafe {
-                    ptr::write(self.hole, t);
-                }
-                let num_holes = self.active_holes.get();
-                self.active_holes.set(num_holes - 1);
-            },
-            Err(p) => panic::resume_unwind(p)
+        let t = (self.recovery.take().expect("No recovery function in Hole!"))();
+        unsafe {
+            ptr::write(self.hole, t);
         }
+        let num_holes = self.active_holes.get();
+        self.active_holes.set(num_holes - 1);
     }
 }
 
