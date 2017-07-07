@@ -47,7 +47,7 @@ pub fn scope<'s, F, R>(f: F) -> R
         f(&this)
     }));
     if this.active_holes.get() != 0 {
-        std::process::exit(101);
+        std::process::abort();
     }
     match result {
         Ok(r) => r,

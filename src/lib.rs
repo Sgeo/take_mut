@@ -2,7 +2,7 @@
 //!
 //! `take()` allows for taking `T` out of a `&mut T`, doing anything with it including consuming it, and producing another `T` to put back in the `&mut T`.
 //!
-//! During `take()`, if a panic occurs, the entire process will be exited, as there's no valid `T` to put back into the `&mut T`.
+//! During `take()`, if a panic occurs, the entire process will be aborted, as there's no valid `T` to put back into the `&mut T`.
 //! Use `take_or_recover()` to replace the `&mut T` with a recovery value before continuing the panic.
 //!
 //! Contrast with `std::mem::replace()`, which allows for putting a different `T` into a `&mut T`, but requiring the new `T` to be available before being able to consume the old `T`.
@@ -15,7 +15,7 @@ pub mod scoped;
 ///
 /// The closure must return a valid T.
 /// # Important
-/// Will exit the program (with status code 101) if the closure panics.
+/// Will abort the program if the closure panics.
 ///
 /// # Example
 /// ```
@@ -35,7 +35,7 @@ pub fn take<T, F>(mut_ref: &mut T, closure: F)
     unsafe {
         let old_t = ptr::read(mut_ref);
         let new_t = panic::catch_unwind(panic::AssertUnwindSafe(|| closure(old_t)))
-            .unwrap_or_else(|_| ::std::process::exit(101));
+            .unwrap_or_else(|_| ::std::process::abort());
         ptr::write(mut_ref, new_t);
     }
 }
@@ -87,7 +87,7 @@ pub fn take_or_recover<T, F, R>(mut_ref: &mut T, recover: R, closure: F)
         match new_t {
             Err(err) => {
                 let r = panic::catch_unwind(panic::AssertUnwindSafe(|| recover()))
-                    .unwrap_or_else(|_| ::std::process::exit(101));
+                    .unwrap_or_else(|_| ::std::process::abort());
                 ptr::write(mut_ref, r);
                 panic::resume_unwind(err);
             }
