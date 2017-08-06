@@ -18,7 +18,7 @@
 //! use take_mut::scoped;
 //! struct Foo;
 //! scoped::scope(|scope| {
-//!     let mut foo = Foo; // Does not outlive scope.
+//!     let mut foo = Foo; // Invalid because foo must come from outside the scope.
 //!     let (t, hole) = scope.take(&mut foo);
 //!     drop(t);
 //!     hole.fill(Foo);
