@@ -158,3 +158,18 @@ fn scope_based_take() {
     });
     println!("{:?}", &bar);
 }
+
+#[test]
+fn panic_on_recovered_panic() {
+    use std::panic;
+    
+    struct Foo;
+    let mut foo = Foo;
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        scope(|scope| {
+            let (t, hole) = scope.take_or_recover(&mut foo, || Foo);
+            panic!("Oops!");
+        });
+    }));
+    assert!(result.is_err());
+}
