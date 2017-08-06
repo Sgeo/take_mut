@@ -1,4 +1,4 @@
-//! This crate provides (at this time) a single function, `take()`.
+//! This crate provides several functions for handling `&mut T` including `take()`.
 //!
 //! `take()` allows for taking `T` out of a `&mut T`, doing anything with it including consuming it, and producing another `T` to put back in the `&mut T`.
 //!
