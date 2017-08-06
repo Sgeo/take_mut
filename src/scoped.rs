@@ -1,4 +1,4 @@
-//! This module provides a scoped API, allowing for taking an arbitrary amount of `&mut T` into `T` within one closure.
+//! This module provides a scoped API, allowing for taking an arbitrary number of `&mut T` into `T` within one closure.
 //! The references are all required to outlive the closure.
 //!
 //! # Example
@@ -18,7 +18,7 @@
 //! use take_mut::scoped;
 //! struct Foo;
 //! scoped::scope(|scope| {
-//!     let mut foo = Foo;
+//!     let mut foo = Foo; // Does not outlive scope.
 //!     let (t, hole) = scope.take(&mut foo);
 //!     drop(t);
 //!     hole.fill(Foo);
