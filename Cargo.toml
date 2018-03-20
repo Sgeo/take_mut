@@ -1,6 +1,6 @@
 [package]
 name = "take_mut"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Sgeo <sgeoster@gmail.com>"]
 license = "MIT"
 homepage = "https://github.com/Sgeo/take_mut"
